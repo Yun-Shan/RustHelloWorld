@@ -1,14 +1,14 @@
 extern crate proc_macro;
 
 use proc_macro2::{TokenStream as TokenStream2, TokenTree};
-use quote::quote;
-use syn::{AttributeArgs, FnArg, ItemFn, MetaNameValue, parse_macro_input};
+use quote::{quote, ToTokens};
+use syn::{AttributeArgs, FnArg, ItemFn, ItemStruct, MetaNameValue, parse_macro_input};
 
 use proc_macro::TokenStream as CompilerTokenStream;
 
 
 fn print_meta_name_value(prefix: &str, meta: MetaNameValue) {
-    let name = meta.path.segments.first().unwrap().ident.to_string();
+    let name = meta.path.get_ident().unwrap();
     let value = match meta.lit {
         syn::Lit::Str(lit) => {
             lit.value()
@@ -32,7 +32,26 @@ fn print_meta_name_value(prefix: &str, meta: MetaNameValue) {
 }
 
 #[proc_macro_attribute]
-pub fn show_streams(macro_arg_attr: CompilerTokenStream, macro_arg_func: CompilerTokenStream) -> CompilerTokenStream {
+pub fn entity(macro_arg_attr: CompilerTokenStream, macro_arg_struct: CompilerTokenStream) -> CompilerTokenStream {
+    let token_struct = TokenStream2::from(macro_arg_struct);
+    let entity_struct = syn::parse2::<ItemStruct>(token_struct).unwrap();
+
+    let mut output = TokenStream2::new();
+    output.extend(entity_struct.to_token_stream());
+    output.extend(quote! {
+
+startup::on_startup! {
+    entity_center::register(|backend| {
+        println!("{}", backend.build(sea_orm::Schema::new(backend).create_table_from_entity(Entity).if_not_exists()).sql);
+    });
+}
+
+    });
+    output.into()
+}
+
+#[proc_macro_attribute]
+pub fn post(macro_arg_attr: CompilerTokenStream, macro_arg_func: CompilerTokenStream) -> CompilerTokenStream {
     //println!("attr: \"{}\"", attrArg.to_string());
     //println!("func : \"{}\"", funcArg.to_string());
 
@@ -67,7 +86,6 @@ pub fn show_streams(macro_arg_attr: CompilerTokenStream, macro_arg_func: Compile
                 match new_arg {
                     FnArg::Typed(syn::PatType { ref mut attrs, .. }) => {
                         attrs.iter().for_each(|attr| {
-
                             let stream = match attr.clone().tokens.into_iter().next().unwrap() {
                                 TokenTree::Group(group) => {
                                     group.stream()
@@ -76,7 +94,7 @@ pub fn show_streams(macro_arg_attr: CompilerTokenStream, macro_arg_func: Compile
                             };
                             let stream0: proc_macro::TokenStream = proc_macro::TokenStream::from(stream);
                             let arg_attr = crate::parse_macro_input::parse::<AttributeArgs>(stream0).unwrap();
-                            let arg_name = format!("参数 {} 的属性{}", ident.ident, attr.path.segments.first().unwrap().ident);
+                            let arg_name = format!("参数 {} 的属性{}", ident.ident, attr.path.get_ident().unwrap());
                             arg_attr.iter().for_each(|meta| match meta {
                                 syn::NestedMeta::Meta(syn::Meta::NameValue(attr)) => {
                                     print_meta_name_value(&*arg_name, attr.clone());

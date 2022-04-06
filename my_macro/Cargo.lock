@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
+ "startup",
  "syn",
 ]
 
@@ -28,6 +29,12 @@ checksum = "632d02bff7f874a36f33ea8bb416cd484b90cc66c1194b1a1110d067a7013f58"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "startup"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e4b82fbe497696de0a02ab63e42cf58b4d64333da2b550494eaa676c98d932f"
 
 [[package]]
 name = "syn"
